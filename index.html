@@ -7,11 +7,18 @@
 function addLayer() {
     var layersDiv = document.getElementById('layers');
     var newLayerDiv = document.createElement('div');
+    newLayerDiv.className = 'layer';
     newLayerDiv.innerHTML = `
         <label>토층 깊이(m): <input type="number" class="zValue" step="0.1"></label>
-        <label>탄성계수(kPa): <input type="number" class="Es" step="100"></label><br>
+        <label>탄성계수(kPa): <input type="number" class="Es" step="100"></label>
+        <button onclick="removeLayer(this)">Remove</button><br>
     `;
     layersDiv.appendChild(newLayerDiv);
+}
+
+function removeLayer(button) {
+    var layerDiv = button.parentNode;
+    layerDiv.parentNode.removeChild(layerDiv);
 }
 
 function calculateBearingCapacity() {
@@ -27,14 +34,14 @@ function calculateBearingCapacity() {
 
     // Determine the larger dimension and calculate influence depth based on B/L ratio
     var maxDimension = Math.max(B, L);
-    var influenceDepth = (B > L ? 2 : 1.5) * maxDimension; // Different multipliers for different B/L ratios
+    var influenceDepth = (B > L ? 2 : 1.5) * maxDimension;
 
     // Filter layers within the influence depth
     var filteredIndexes = zValues.map((z, index) => z <= influenceDepth ? index : -1).filter(index => index !== -1);
     var IC = filteredIndexes.map(index => 0.5 * (1 - (zValues[index] / H) ** 2));
     var dz = filteredIndexes.map((index, i) => i < filteredIndexes.length - 1 ? zValues[filteredIndexes[i + 1]] - zValues[index] : zValues[index] - zValues[filteredIndexes[i - 1]]);
 
-    var q_net = 50;  // Initial guess
+    var q_net = 50;
     var error, calculatedSettlement;
 
     for (let i = 0; i < 100; i++) {
@@ -48,10 +55,6 @@ function calculateBearingCapacity() {
     var bearingCapacity = q_net / area;
 
     document.getElementById('result').textContent = "Estimated Bearing Capacity within influence depth: " + bearingCapacity.toFixed(2) + " kPa";
-}
-
-window.onload = function() {
-    addLayer();
 }
 </script>
 </head>
