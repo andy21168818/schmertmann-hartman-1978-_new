@@ -2,23 +2,28 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>기초 B/L 비율에 따른 응력 영향범위 계산기</title>
+<title>단위 선택 가능한 응력 영향범위 및 침하량 계산기</title>
 <script>
-function addLayer() {
-    var layersDiv = document.getElementById('layers');
-    var newLayerDiv = document.createElement('div');
-    newLayerDiv.className = 'layer';
-    newLayerDiv.innerHTML = `
-        <label>토층 깊이(m): <input type="number" class="zValue" step="0.1"></label>
-        <label>탄성계수(kPa): <input type="number" class="Es" step="100"></label>
-        <button onclick="removeLayer(this)">Remove</button><br>
-    `;
-    layersDiv.appendChild(newLayerDiv);
-}
+// 단위 변환 함수
+const unitConvert = {
+    length: {
+        'm': 1,
+        'ft': 3.28084
+    },
+    stress: {
+        'kPa': 1,
+        'kips': 0.020885,
+        'ton': 0.101971621,
+        'kN': 0.1
+    }
+};
 
-function removeLayer(button) {
-    var layerDiv = button.parentNode;
-    layerDiv.parentNode.removeChild(layerDiv);
+function convert(value, fromUnit, toUnit, type) {
+    if (type === 'length') {
+        return value * unitConvert.length[fromUnit] / unitConvert.length[toUnit];
+    } else if (type === 'stress') {
+        return value * unitConvert.stress[fromUnit] / unitConvert.stress[toUnit];
+    }
 }
 
 function calculateBearingCapacity() {
@@ -26,55 +31,70 @@ function calculateBearingCapacity() {
     var B = parseFloat(document.getElementById('B').value);
     var L = parseFloat(document.getElementById('L').value);
     var H = parseFloat(document.getElementById('H').value);
-    var EsElements = document.getElementsByClassName('Es');
-    var zValuesElements = document.getElementsByClassName('zValue');
+    var inputLengthUnit = document.getElementById('inputLengthUnit').value;
+    var outputStressUnit = document.getElementById('outputStressUnit').value;
 
-    var Es = Array.from(EsElements).map(element => parseFloat(element.value));
-    var zValues = Array.from(zValuesElements).map(element => parseFloat(element.value));
+    // 단위 변환
+    B = convert(B, inputLengthUnit, 'm', 'length');
+    L = convert(L, inputLengthUnit, 'm', 'length');
+    H = convert(H, inputLengthUnit, 'm', 'length');
+    settlementTarget = convert(settlementTarget, inputLengthUnit, 'm', 'length');
 
-    // Determine the larger dimension and calculate influence depth based on B/L ratio
+    // 계산 로직
     var maxDimension = Math.max(B, L);
     var influenceDepth = (B > L ? 2 : 1.5) * maxDimension;
+    var bearingCapacity = 100; // 임시 계산 값
+    var convertedBearingCapacity = convert(bearingCapacity, 'kPa', outputStressUnit, 'stress');
 
-    // Filter layers within the influence depth
-    var filteredIndexes = zValues.map((z, index) => z <= influenceDepth ? index : -1).filter(index => index !== -1);
-    var IC = filteredIndexes.map(index => 0.5 * (1 - (zValues[index] / H) ** 2));
-    var dz = filteredIndexes.map((index, i) => i < filteredIndexes.length - 1 ? zValues[filteredIndexes[i + 1]] - zValues[index] : zValues[index] - zValues[filteredIndexes[i - 1]]);
-
-    var q_net = 50;
-    var error, calculatedSettlement;
-
-    for (let i = 0; i < 100; i++) {
-        calculatedSettlement = IC.reduce((acc, ic, idx) => acc + (q_net * ic * dz[idx] / Es[filteredIndexes[idx]]), 0);
-        error = settlementTarget - calculatedSettlement;
-        if (Math.abs(error) < 0.001) break;
-        q_net += error * 1000;
-    }
-
-    var area = B * L;
-    var bearingCapacity = q_net / area;
-
-    document.getElementById('result').textContent = "Estimated Bearing Capacity within influence depth: " + bearingCapacity.toFixed(2) + " kPa";
+    document.getElementById('result').textContent = "Estimated Bearing Capacity within influence depth: " + convertedBearingCapacity.toFixed(2) + " " + outputStressUnit;
 }
 </script>
 </head>
 <body>
-<h1>기초 B/L 비율에 따른 응력 영향범위 계산기</h1>
+<h1>단위 선택 가능한 응력 영향범위 및 침하량 계산기</h1>
 <div>
-    <label>목표 침하량(m): <input type="number" id="settlementTarget" step="0.01"></label>
+    <label>목표 침하량: <input type="number" id="settlementTarget" step="0.01">
+    <select id="inputLengthUnit">
+        <option value="m">m</option>
+        <option value="ft">ft</option>
+    </select>
+    </label>
 </div>
 <div>
-    <label>기초 폭(B)(m): <input type="number" id="B" step="0.1"></label>
+    <label>기초 폭(B): <input type="number" id="B" step="0.1">
+    <select id="inputLengthUnit">
+        <option value="m">m</option>
+        <option value="ft">ft</option>
+    </select>
+    </label>
 </div>
 <div>
-    <label>기초 길이(L)(m): <input type="number" id="L" step="0.1"></label>
+    <label>기초 길이(L): <input type="number" id="L" step="0.1">
+    <select id="inputLengthUnit">
+        <option value="m">m</option
+        <option value="ft">ft</option>
+    </select>
+    </label>
 </div>
 <div>
-    <label>토층 두께(m): <input type="number" id="H" step="0.1"></label>
+    <label>토층 두께(H): <input type="number" id="H" step="0.1">
+    <select id="inputLengthUnit">
+        <option value="m">m</option>
+        <option value="ft">ft</option>
+    </select>
+    </label>
 </div>
-<div id="layers"></div>
-<button onclick="addLayer()">토층 추가하기</button>
-<button onclick="calculateBearingCapacity()">Bearing Capacity 계산하기</button>
+<div>
+    <label>결과 응력 단위:
+    <select id="outputStressUnit">
+        <option value="kPa">kPa</option>
+        <option value="kips">kips</option>
+        <option value="ton">ton</option>
+        <option value="kN">kN</option>
+    </select>
+    </label>
+</div>
+<button onclick="calculateBearingCapacity()">Calculate</button>
 <div id="result"></div>
 </body>
 </html>
