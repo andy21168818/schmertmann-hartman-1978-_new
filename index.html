@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>기초 B/L 비율에 따른 응력 영향범위 계산기</title>
+<script>
+function addLayer() {
+    var layersDiv = document.getElementById('layers');
+    var newLayerDiv = document.createElement('div');
+    newLayerDiv.innerHTML = `
+        <label>토층 깊이(m): <input type="number" class="zValue" step="0.1"></label>
+        <label>탄성계수(kPa): <input type="number" class="Es" step="100"></label><br>
+    `;
+    layersDiv.appendChild(newLayerDiv);
+}
+
+function calculateBearingCapacity() {
+    var settlementTarget = parseFloat(document.getElementById('settlementTarget').value);
+    var B = parseFloat(document.getElementById('B').value);
+    var L = parseFloat(document.getElementById('L').value);
+    var H = parseFloat(document.getElementById('H').value);
+    var EsElements = document.getElementsByClassName('Es');
+    var zValuesElements = document.getElementsByClassName('zValue');
+
+    var Es = Array.from(EsElements).map(element => parseFloat(element.value));
+    var zValues = Array.from(zValuesElements).map(element => parseFloat(element.value));
+
+    // Determine the larger dimension and calculate influence depth based on B/L ratio
+    var maxDimension = Math.max(B, L);
+    var influenceDepth = (B > L ? 2 : 1.5) * maxDimension; // Different multipliers for different B/L ratios
+
+    // Filter layers within the influence depth
+    var filteredIndexes = zValues.map((z, index) => z <= influenceDepth ? index : -1).filter(index => index !== -1);
+    var IC = filteredIndexes.map(index => 0.5 * (1 - (zValues[index] / H) ** 2));
+    var dz = filteredIndexes.map((index, i) => i < filteredIndexes.length - 1 ? zValues[filteredIndexes[i + 1]] - zValues[index] : zValues[index] - zValues[filteredIndexes[i - 1]]);
+
+    var q_net = 50;  // Initial guess
+    var error, calculatedSettlement;
+
+    for (let i = 0; i < 100; i++) {
+        calculatedSettlement = IC.reduce((acc, ic, idx) => acc + (q_net * ic * dz[idx] / Es[filteredIndexes[idx]]), 0);
+        error = settlementTarget - calculatedSettlement;
+        if (Math.abs(error) < 0.001) break;
+        q_net += error * 1000;
+    }
+
+    var area = B * L;
+    var bearingCapacity = q_net / area;
+
+    document.getElementById('result').textContent = "Estimated Bearing Capacity within influence depth: " + bearingCapacity.toFixed(2) + " kPa";
+}
+
+window.onload = function() {
+    addLayer();
+}
+</script>
+</head>
+<body>
+<h1>기초 B/L 비율에 따른 응력 영향범위 계산기</h1>
+<div>
+    <label>목표 침하량(m): <input type="number" id="settlementTarget" step="0.01"></label>
+</div>
+<div>
+    <label>기초 폭(B)(m): <input type="number" id="B" step="0.1"></label>
+</div>
+<div>
+    <label>기초 길이(L)(m): <input type="number" id="L" step="0.1"></label>
+</div>
+<div>
+    <label>토층 두께(m): <input type="number" id="H" step="0.1"></label>
+</div>
+<div id="layers"></div>
+<button onclick="addLayer()">토층 추가하기</button>
+<button onclick="calculateBearingCapacity()">Bearing Capacity 계산하기</button>
+<div id="result"></div>
+</body>
+</html>
