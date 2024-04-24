@@ -106,10 +106,18 @@ function calculateBearingCapacity() {
     });
 
     var totalSettlement = 0, loadEstimate = 50; // Initial load estimate in kPa
+    report += `\nCalculation Steps:\n`;
+
     for (let i = 0; i < 100; i++) {
         totalSettlement = layers.reduce((acc, layer) => {
             var primarySettlement = (loadEstimate * layer.thickness) / (layer.Es * layer.depth);
             var creepSettlement = primarySettlement * Math.log(1 + yearsOfUse);
+
+            report += `Layer Thickness: ${layer.thickness.toFixed(2)} m\n`;
+            report += `Layer Depth: ${layer.depth.toFixed(2)} m\n`;
+            report += `Primary Settlement: ${primarySettlement.toFixed(2)} m\n`;
+            report += `Creep Settlement: ${creepSettlement.toFixed(2)} m\n`;
+
             return acc + primarySettlement + creepSettlement;
         }, 0);
 
