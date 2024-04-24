@@ -88,6 +88,19 @@ function calculateBearingCapacity() {
         var unitWeight = parseFloat(layer.querySelector('.unitWeight').value);
         var Es = parseFloat(layer.querySelector('.Es').value); // Added modulus of elasticity
         var thickness = convert(parseFloat(layer.querySelector('.thickness').value), layer.querySelector('.thicknessUnit').value, 'm', 'length');
+        
+        // 유효하지 않은 값(NaN) 검사
+        if (isNaN(depth) || isNaN(unitWeight) || isNaN(Es) || isNaN(thickness)) {
+            alert("모든 토층에 대한 깊이, 단위 중량, 탄성계수, 두께 값을 정확히 입력해주세요.");
+            return;
+        }
+
+        // 계산 과정에서 depth가 0인 경우를 체크하여 에러를 방지합니다.
+        if (depth === 0) {
+            alert("토층의 깊이는 0이 될 수 없습니다.");
+            return;
+        }
+
         report += `Depth: ${depth.toFixed(2)} m, Unit Weight: ${unitWeight} kN/m^3, Modulus of Elasticity: ${Es} kPa, Thickness: ${thickness.toFixed(2)} m\n`;
         return { depth, unitWeight, Es, thickness };
     });
@@ -114,6 +127,20 @@ function calculateBearingCapacity() {
     report += `Converted Bearing Capacity: ${convertedBearingCapacity.toFixed(2)} ${outputStressUnit}\n`;
 
     document.getElementById('report').textContent = report;
+
+    // 보고서를 출력합니다.
+    printReport(report);
+}
+
+// 보고서를 출력하는 함수
+function printReport(report) {
+    var printWindow = window.open('', '_blank');
+    printWindow.document.open();
+    printWindow.document.write('<html><head><title>Calculation Report</title></head><body>');
+    printWindow.document.write('<pre>' + report + '</pre>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
 }
 
 window.onload = function() {
