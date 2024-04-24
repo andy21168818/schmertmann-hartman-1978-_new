@@ -2,28 +2,46 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>단위 선택 가능한 응력 영향범위 및 침하량 계산기</title>
+<title>토층별 탄성계수 입력 가능한 응력 영향범위 및 침하량 계산기</title>
+<style>
+  canvas {
+    border: 1px solid black;
+  }
+</style>
 <script>
 // 단위 변환 함수
 const unitConvert = {
     length: {
         'm': 1,
-        'ft': 3.28084
+        'ft': 0.3048
     },
     stress: {
         'kPa': 1,
-        'kips': 0.020885,
-        'ton': 0.101971621,
-        'kN': 0.1
+        'MPa': 0.001,
+        'ton/m^2': 0.102,
+        'kN/m^2': 1
     }
 };
 
 function convert(value, fromUnit, toUnit, type) {
-    if (type === 'length') {
-        return value * unitConvert.length[fromUnit] / unitConvert.length[toUnit];
-    } else if (type === 'stress') {
-        return value * unitConvert.stress[fromUnit] / unitConvert.stress[toUnit];
-    }
+    return value * unitConvert[type][fromUnit] / unitConvert[type][toUnit];
+}
+
+function addLayer() {
+    var layersDiv = document.getElementById('layers');
+    var newLayerDiv = document.createElement('div');
+    newLayerDiv.className = 'layer';
+    newLayerDiv.innerHTML = `
+        <label>Depth (m or ft): <input type="number" class="zValue" step="0.1"></label>
+        <label>Modulus of Elasticity (kPa): <input type="number" class="Es" step="100"></label>
+        <button onclick="removeLayer(this)">Remove</button><br>
+    `;
+    layersDiv.appendChild(newLayerDiv);
+}
+
+function removeLayer(button) {
+    var layerDiv = button.parentNode;
+    layerDiv.parentNode.removeChild(layerDiv);
 }
 
 function calculateBearingCapacity() {
@@ -34,24 +52,53 @@ function calculateBearingCapacity() {
     var inputLengthUnit = document.getElementById('inputLengthUnit').value;
     var outputStressUnit = document.getElementById('outputStressUnit').value;
 
-    // 단위 변환
     B = convert(B, inputLengthUnit, 'm', 'length');
     L = convert(L, inputLengthUnit, 'm', 'length');
     H = convert(H, inputLengthUnit, 'm', 'length');
     settlementTarget = convert(settlementTarget, inputLengthUnit, 'm', 'length');
 
-    // 계산 로직
     var maxDimension = Math.max(B, L);
     var influenceDepth = (B > L ? 2 : 1.5) * maxDimension;
     var bearingCapacity = 100; // 임시 계산 값
     var convertedBearingCapacity = convert(bearingCapacity, 'kPa', outputStressUnit, 'stress');
 
-    document.getElementById('result').textContent = "Estimated Bearing Capacity within influence depth: " + convertedBearingCapacity.toFixed(2) + " " + outputStressUnit;
+    document.getElementById('result').textContent = "Estimated Bearing Capacity: " + convertedBearingCapacity.toFixed(2) + " " + outputStressUnit;
+    drawGraphics(B, L, influenceDepth, settlementTarget);
+}
+
+function drawGraphics(B, L, depth, settlement) {
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
+
+    // Draw foundation
+    ctx.fillStyle = 'blue';
+    ctx.fillRect(50, 50, L * 10, B * 10);  // Scale for visibility
+
+    // Draw influence lines
+    ctx.beginPath();
+    ctx.moveTo(50, 50);
+    ctx.lineTo(50 + L * 10, 50 + depth * 10);
+    ctx.strokeStyle = 'red';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(50 + L * 10, 50);
+    ctx.lineTo(50, 50 + depth * 10);
+    ctx.stroke();
+
+    // Label for settlement
+    ctx.fillStyle = 'black';
+    ctx.fillText("Settlement: " + settlement.toFixed(2) + " m", 50, 40);
+}
+
+window.onload = function() {
+    addLayer();
 }
 </script>
 </head>
 <body>
-<h1>단위 선택 가능한 응력 영향범위 및 침하량 계산기</h1>
+<h1>응력 영향범위 및 침하량 계산기</h1>
 <div>
     <label>목표 침하량: <input type="number" id="settlementTarget" step="0.01">
     <select id="inputLengthUnit">
@@ -71,7 +118,7 @@ function calculateBearingCapacity() {
 <div>
     <label>기초 길이(L): <input type="number" id="L" step="0.1">
     <select id="inputLengthUnit">
-        <option value="m">m</option
+        <option value="m">m</option>
         <option value="ft">ft</option>
     </select>
     </label>
@@ -84,17 +131,20 @@ function calculateBearingCapacity() {
     </select>
     </label>
 </div>
+<div id="layers"></div>
+<button onclick="addLayer()">Add Layer</button>
 <div>
-    <label>결과 응력 단위:
+    <label>Output Stress Unit:
     <select id="outputStressUnit">
         <option value="kPa">kPa</option>
-        <option value="kips">kips</option>
-        <option value="ton">ton</option>
-        <option value="kN">kN</option>
+        <option value="MPa">MPa</option>
+        <option value="ton/m^2">ton/m^2</option>
+        <option value="kN/m^2">kN/m^2</option>
     </select>
     </label>
 </div>
 <button onclick="calculateBearingCapacity()">Calculate</button>
 <div id="result"></div>
+<canvas id="canvas" width="300" height="300"></canvas>
 </body>
 </html>
