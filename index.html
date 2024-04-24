@@ -2,14 +2,16 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>토층별 탄성계수 입력 가능한 응력 영향범위 및 침하량 계산기</title>
+<title>응력 영향범위 및 침하량 계산기</title>
 <style>
   canvas {
     border: 1px solid black;
   }
+  .layer {
+    margin-bottom: 5px;
+  }
 </style>
 <script>
-// 단위 변환 함수
 const unitConvert = {
     length: {
         'm': 1,
@@ -32,7 +34,12 @@ function addLayer() {
     var newLayerDiv = document.createElement('div');
     newLayerDiv.className = 'layer';
     newLayerDiv.innerHTML = `
-        <label>Depth (m or ft): <input type="number" class="zValue" step="0.1"></label>
+        <label>Depth: <input type="number" class="zValue" step="0.1">
+        <select class="depthUnit">
+            <option value="m">m</option>
+            <option value="ft">ft</option>
+        </select>
+        </label>
         <label>Modulus of Elasticity (kPa): <input type="number" class="Es" step="100"></label>
         <button onclick="removeLayer(this)">Remove</button><br>
     `;
@@ -46,50 +53,50 @@ function removeLayer(button) {
 
 function calculateBearingCapacity() {
     var settlementTarget = parseFloat(document.getElementById('settlementTarget').value);
-    var B = parseFloat(document.getElementById('B').value);
-    var L = parseFloat(document.getElementById('L').value);
-    var H = parseFloat(document.getElementById('H').value);
     var inputLengthUnit = document.getElementById('inputLengthUnit').value;
     var outputStressUnit = document.getElementById('outputStressUnit').value;
 
-    B = convert(B, inputLengthUnit, 'm', 'length');
-    L = convert(L, inputLengthUnit, 'm', 'length');
-    H = convert(H, inputLengthUnit, 'm', 'length');
     settlementTarget = convert(settlementTarget, inputLengthUnit, 'm', 'length');
 
-    var maxDimension = Math.max(B, L);
-    var influenceDepth = (B > L ? 2 : 1.5) * maxDimension;
-    var bearingCapacity = 100; // 임시 계산 값
+    var zValuesElements = document.getElementsByClassName('zValue');
+    var depthUnits = document.getElementsByClassName('depthUnit');
+    var EsElements = document.getElementsByClassName('Es');
+
+    var depths = Array.from(zValuesElements).map((el, idx) => convert(parseFloat(el.value), depthUnits[idx].value, 'm', 'length'));
+    var Es = Array.from(EsElements).map(el => parseFloat(el.value));
+
+    // Dummy values for B, L for graphical representation
+    var B = 10; // Example base width
+    var L = 20; // Example base length
+    var maxDepth = Math.max(...depths);
+    var influenceRadius = maxDepth; // Simplified for demonstration
+
+    var bearingCapacity = 100; // Dummy calculation
     var convertedBearingCapacity = convert(bearingCapacity, 'kPa', outputStressUnit, 'stress');
 
     document.getElementById('result').textContent = "Estimated Bearing Capacity: " + convertedBearingCapacity.toFixed(2) + " " + outputStressUnit;
-    drawGraphics(B, L, influenceDepth, settlementTarget);
+    drawGraphics(B, L, depths, Es, influenceRadius);
 }
 
-function drawGraphics(B, L, depth, settlement) {
+function drawGraphics(B, L, depths, Es, radius) {
     var canvas = document.getElementById('canvas');
     var ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw foundation
+    // Draw base
     ctx.fillStyle = 'blue';
-    ctx.fillRect(50, 50, L * 10, B * 10);  // Scale for visibility
+    ctx.fillRect(150, 150, L * 3, B * 3);
 
-    // Draw influence lines
+    // Draw influence circle
     ctx.beginPath();
-    ctx.moveTo(50, 50);
-    ctx.lineTo(50 + L * 10, 50 + depth * 10);
+    ctx.arc(150 + L * 1.5, 150 + B * 1.5, radius * 3, 0, 2 * Math.PI);
     ctx.strokeStyle = 'red';
     ctx.stroke();
 
-    ctx.beginPath();
-    ctx.moveTo(50 + L * 10, 50);
-    ctx.lineTo(50, 50 + depth * 10);
-    ctx.stroke();
-
-    // Label for settlement
-    ctx.fillStyle = 'black';
-    ctx.fillText("Settlement: " + settlement.toFixed(2) + " m", 50, 40);
+    // Draw each layer
+    depths.forEach((depth, index) => {
+        ctx.fillText(`Layer ${index + 1}: Depth = ${depth.toFixed(2)} m, E = ${Es[index]} kPa`, 10, 20 + index * 20);
+    });
 }
 
 window.onload = function() {
@@ -101,30 +108,6 @@ window.onload = function() {
 <h1>응력 영향범위 및 침하량 계산기</h1>
 <div>
     <label>목표 침하량: <input type="number" id="settlementTarget" step="0.01">
-    <select id="inputLengthUnit">
-        <option value="m">m</option>
-        <option value="ft">ft</option>
-    </select>
-    </label>
-</div>
-<div>
-    <label>기초 폭(B): <input type="number" id="B" step="0.1">
-    <select id="inputLengthUnit">
-        <option value="m">m</option>
-        <option value="ft">ft</option>
-    </select>
-    </label>
-</div>
-<div>
-    <label>기초 길이(L): <input type="number" id="L" step="0.1">
-    <select id="inputLengthUnit">
-        <option value="m">m</option>
-        <option value="ft">ft</option>
-    </select>
-    </label>
-</div>
-<div>
-    <label>토층 두께(H): <input type="number" id="H" step="0.1">
     <select id="inputLengthUnit">
         <option value="m">m</option>
         <option value="ft">ft</option>
@@ -145,6 +128,6 @@ window.onload = function() {
 </div>
 <button onclick="calculateBearingCapacity()">Calculate</button>
 <div id="result"></div>
-<canvas id="canvas" width="300" height="300"></canvas>
+<canvas id="canvas" width="400" height="400"></canvas>
 </body>
 </html>
