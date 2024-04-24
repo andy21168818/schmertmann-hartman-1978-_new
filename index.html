@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <title>응력 영향범위 및 침하량 계산기</title>
 <style>
-  canvas {
-    border: 1px solid black;
-  }
   .layer {
     margin-bottom: 5px;
   }
   #report {
     white-space: pre-line;
+    margin-top: 10px;
+    border-top: 1px solid #000;
+    padding-top: 10px;
   }
 </style>
 <script>
@@ -48,6 +48,7 @@ function addLayer() {
         </select>
         </label>
         <label>Unit Weight (kN/m^3): <input type="number" class="unitWeight" step="1"></label>
+        <label>Modulus of Elasticity (Es) (kPa): <input type="number" class="Es" step="100"></label>
         <label>Thickness: <input type="number" class="thickness" step="0.1">
         <select class="thicknessUnit">
             <option value="m">m</option>
@@ -85,16 +86,16 @@ function calculateBearingCapacity() {
     var layers = Array.from(document.getElementsByClassName('layer')).map(layer => {
         var depth = convert(parseFloat(layer.querySelector('.zValue').value), layer.querySelector('.depthUnit').value, 'm', 'length');
         var unitWeight = parseFloat(layer.querySelector('.unitWeight').value);
+        var Es = parseFloat(layer.querySelector('.Es').value); // Added modulus of elasticity
         var thickness = convert(parseFloat(layer.querySelector('.thickness').value), layer.querySelector('.thicknessUnit').value, 'm', 'length');
-        var effectiveUnitWeight = unitWeight - 9.81; // Consider the buoyant effect
-        report += `Depth: ${depth.toFixed(2)} m, Unit Weight: ${unitWeight} kN/m^3, Thickness: ${thickness.toFixed(2)} m\n`;
-        return { depth, unitWeight, effectiveUnitWeight, thickness };
+        report += `Depth: ${depth.toFixed(2)} m, Unit Weight: ${unitWeight} kN/m^3, Modulus of Elasticity: ${Es} kPa, Thickness: ${thickness.toFixed(2)} m\n`;
+        return { depth, unitWeight, Es, thickness };
     });
 
     var totalSettlement = 0, loadEstimate = 50; // Initial load estimate in kPa
     for (let i = 0; i < 100; i++) {
         totalSettlement = layers.reduce((acc, layer) => {
-            var primarySettlement = (loadEstimate * layer.thickness) / (layer.effectiveUnitWeight * layer.depth);
+            var primarySettlement = (loadEstimate * layer.thickness) / (layer.Es * layer.depth);
             var creepSettlement = primarySettlement * Math.log(1 + yearsOfUse);
             return acc + primarySettlement + creepSettlement;
         }, 0);
@@ -124,7 +125,17 @@ window.onload = function() {
 <h1>응력 영향범위 및 침하량 계산기</h1>
 <div>
     <label>기초 폭(B): <input type="number" id="B" step="0.1">
+    <select id="foundationUnit">
+        <option value="m">m</option>
+        <option value="ft">ft</option>
+    </select>
+    </label>
     <label>기초 길이(L): <input type="number" id="L" step="0.1">
+    <select id="foundationUnit">
+        <option value="m">m</option>
+        <option value="ft">ft</option>
+    </select>
+    </label>
     <label>기초 깊이(D): <input type="number" id="D" step="0.1">
     <select id="foundationUnit">
         <option value="m">m</option>
